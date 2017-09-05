@@ -61,25 +61,28 @@ promptUserForChoice = do
     Right val -> return val
     Left _ -> return 3
 
+getUserMenuChoice :: IO MenuChoice
+getUserMenuChoice = do
+  userChoice <- promptUserForChoice
+  choice <- runReaderT getChoices userChoice
+  putStrLn $ "You chose: " ++ show choice
+  return choice
+
 main :: IO ()
 main = mainLoop initialState
 
-mainLoop :: StateTree -> IO ()
-mainLoop state = do
-  userChoice <- promptUserForChoice
-  choice <- runReaderT getChoices userChoice
-  print choice
-  case choice of
-    ChangeName -> do
-      newState <- processStateAction getNewNameAndAlterState state
-      mainLoop newState
-    ChangeAge -> do
-      newState <- processStateAction getNewAgeAndAlterState state
-      mainLoop newState
+processMenuChoice :: StateTree -> MenuChoice -> IO ()
+processMenuChoice state choice = case choice of
+    ChangeName -> processStateAction getNewNameAndAlterState state >>= mainLoop
+    ChangeAge -> processStateAction getNewAgeAndAlterState state >>= mainLoop
     Quit -> do
       putStrLn "Quitting!"
       return ()
     _ -> mainLoop state
+
+mainLoop :: StateTree -> IO ()
+mainLoop state = getUserMenuChoice >>= processMenuChoice state
+  
   
 processStateAction :: TreeState IO () -> StateTree -> IO StateTree
 processStateAction action state = do
