@@ -71,17 +71,21 @@ mainLoop state = do
   print choice
   case choice of
     ChangeName -> do
-      (name, newState) <- runStateT getNewNameAndAlterState state
-      putStrLn $ "New state: " ++ show newState
+      newState <- processStateAction getNewNameAndAlterState state
       mainLoop newState
     ChangeAge -> do
-      (age, newState) <- runStateT getNewAgeAndAlterState state
-      putStrLn $ "New state: " ++ show newState
+      newState <- processStateAction getNewAgeAndAlterState state
       mainLoop newState
     Quit -> do
       putStrLn "Quitting!"
       return ()
     _ -> mainLoop state
+  
+processStateAction :: TreeState IO () -> StateTree -> IO StateTree
+processStateAction action state = do
+  (val, newState) <- runStateT action state
+  putStrLn $ "New state: " ++ show newState
+  return newState
 
 getNewNameAndAlterState :: TreeState IO ()
 getNewNameAndAlterState = do
