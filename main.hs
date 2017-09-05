@@ -27,6 +27,44 @@ initialState = StateTree "Carson" 25 0
 
 type TreeState = StateT StateTree
 
+changeNameState :: StateTree -> String -> StateTree
+changeNameState (StateTree _ age passes) name = StateTree name age (succ passes)
+
+changeAgeState :: StateTree -> Int -> StateTree
+changeAgeState (StateTree name _ passes) age = StateTree name age (succ passes)
+
+alterName :: MonadState StateTree m => String -> m ()
+alterName newName = do
+  st <- get
+  put (changeNameState st newName)
+
+alterAge :: MonadState StateTree m => Int -> m ()
+alterAge newAge = do
+  st <- get
+  put (changeAgeState st newAge)
+
+getNewNameAndAlterState :: TreeState IO ()
+getNewNameAndAlterState = do
+  liftIO $ putStrLn "Choose your name!"
+  name <- liftIO getLine
+  alterName name
+
+getNewAgeAndAlterState :: TreeState IO ()
+getNewAgeAndAlterState = do
+  liftIO $ putStrLn "Choose your new age!"
+  potentialAge <- liftIO getLine
+  case (readEither potentialAge :: Either String Int) of
+    Right val -> alterAge val
+    Left err -> do
+      liftIO $ putStrLn err
+      getNewAgeAndAlterState
+
+processStateAction :: TreeState IO () -> StateTree -> IO StateTree
+processStateAction action state = do
+  (val, newState) <- runStateT action state
+  putStrLn $ "New state: " ++ show newState
+  return newState
+
 data MenuChoice = ChangeName | ChangeAge | Quit | Unknown deriving (Eq)
 
 instance Show MenuChoice where
@@ -71,6 +109,9 @@ getUserMenuChoice = do
 main :: IO ()
 main = mainLoop initialState
 
+mainLoop :: StateTree -> IO ()
+mainLoop state = getUserMenuChoice >>= processMenuChoice state
+
 processMenuChoice :: StateTree -> MenuChoice -> IO ()
 processMenuChoice state choice = case choice of
     ChangeName -> processStateAction getNewNameAndAlterState state >>= mainLoop
@@ -79,48 +120,3 @@ processMenuChoice state choice = case choice of
       putStrLn "Quitting!"
       return ()
     _ -> mainLoop state
-
-mainLoop :: StateTree -> IO ()
-mainLoop state = getUserMenuChoice >>= processMenuChoice state
-  
-  
-processStateAction :: TreeState IO () -> StateTree -> IO StateTree
-processStateAction action state = do
-  (val, newState) <- runStateT action state
-  putStrLn $ "New state: " ++ show newState
-  return newState
-
-getNewNameAndAlterState :: TreeState IO ()
-getNewNameAndAlterState = do
-  liftIO $ putStrLn "Choose your name!"
-  name <- liftIO getLine
-  alterName name
-
-getNewAgeAndAlterState :: TreeState IO ()
-getNewAgeAndAlterState = do
-  liftIO $ putStrLn "Choose your new age!"
-  potentialAge <- liftIO getLine
-  case (readEither potentialAge :: Either String Int) of
-    Right val -> alterAge val
-    Left err -> do
-      liftIO $ putStrLn err
-      getNewAgeAndAlterState
-
-nameStateVal :: StateTree -> String
-nameStateVal = name
-
-changeNameState :: String -> StateTree -> StateTree
-changeNameState name (StateTree n age passes) = StateTree name age passes
-
-nextPassesState :: StateTree -> StateTree
-nextPassesState (StateTree name age passes) = StateTree name age (succ passes)
-
-alterName :: MonadState StateTree m => String -> m ()
-alterName newName = do
-  (StateTree _ age passes) <- get
-  put (StateTree newName age (succ passes))
-
-alterAge :: MonadState StateTree m => Int -> m ()
-alterAge newAge = do
-  (StateTree name _ passes) <- get
-  put (StateTree name newAge (succ passes))
